@@ -1,0 +1,7 @@
+{
+  "host": "{hostname}.local",
+  "port": "5432",
+  "database": "example_pgdb",
+  "user": "developer",
+  "password": "yourpassword"
+}

@@ -1,0 +1,5 @@
+{
+  "out-count-limit": 30,
+  "show-top": 30,
+  "csv-dir": "~/Documents/example/csv"
+}

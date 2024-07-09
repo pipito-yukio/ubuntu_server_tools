@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "disable_existing_loggers": true,
+  "formatters": {
+    "fileFormatter": {
+      "format": "%(asctime)s %(levelname)s %(filename)s(%(lineno)d)[%(funcName)s] %(message)s",
+      "datefmt": "%Y-%m-%d %H:%M:%S"
+    },
+    "consoleFormatter": {
+      "format": "%(levelname)s %(message)s"
+    }
+  },
+  "handlers": {
+    "consoleHandler": {
+      "class": "logging.StreamHandler",
+      "level": "INFO",
+      "formatter": "consoleFormatter"
+    },
+    "fileHandler": {
+      "class": "logging.FileHandler",
+      "level": "DEBUG",
+      "formatter": "fileFormatter",
+      "filename": "{}/batch_insert.log"
+    }
+  },
+  "loggers": {
+    "batch_insert": {
+      "handlers": ["fileHandler", "consoleHandler"],
+      "level": "DEBUG",
+      "propergate": false
+    }
+  }
+}
