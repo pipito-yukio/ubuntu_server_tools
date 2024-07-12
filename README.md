@@ -95,14 +95,14 @@ Dockerに関してはコンテナ作成が容易なので Compose を使って�
 ```
 
 <div>
-<img width="400" src="images/top/book_BigDataSQLKatuyou.jpg">
+<img width="300" src="images/top/book_BigDataSQLKatuyou.jpg">
 </div>
 <br/>
 
 10年以上前の発行ながらいまでも PostgreSQL のバイブル。
 
 <div>
-<img width="400" src="images/top/book_postgreSQL.jpg">
+<img width="300" src="images/top/book_postgreSQL.jpg">
 </div>
 <br/>
 
@@ -119,6 +119,6 @@ Chapter3 Firewalld
 ```
 
 <div>
-<img width="400" src="images/top/book_CentOS7.jpg">
+<img width="300" src="images/top/book_CentOS7.jpg">
 </div>
 <br/>
