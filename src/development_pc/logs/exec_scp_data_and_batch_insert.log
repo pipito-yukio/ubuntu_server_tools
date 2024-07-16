@@ -1,0 +1,19 @@
+$ bin/servertools/scp_data_and_batch_insert.sh 2024-07-15
+AuthFail_ssh_2024-07-15.log       100%  323KB  56.0MB/s   00:00    
+scp AuthFail_ssh_2024-07-15.log >> exit_status=0
+Namespace(log_file='/home/yourname/Documents/example/error_logs/AuthFail_ssh_2024-07-15.log', show_top=None, out_csv=True)
+ip_list.size: 1939
+log_date: 2024-07-15
+output_lines: 27
+Saved: /home/yourname/Documents/example/csv/ssh_auth_error_2024-07-15.csv
+execute ExportCSV_with_autherrorlog.py >> exit_status=0
+INFO Namespace(csv_file='/home/yourname/Documents/example/csv/ssh_auth_error_2024-07-15.csv', enable_debug=False)
+INFO csv: 27 lines.
+INFO exists_ip_dict.size: 5
+INFO Registered_count: 5
+INFO reg_ip_datas.size: 22
+INFO registered_ip_ids.size: 22
+INFO Register candicate ssh_auth_error_list.size: 27
+INFO Finished.
+Done.
+
