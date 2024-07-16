@@ -35,12 +35,64 @@
   + Ubuntu Desktop 22.04
 
 
-## データベース
+## 1. データベース
 
 不正アクセスのIPアドレスとアクセス回数を管理するデータベースとして **PostgreSQL 16** を dockerコンテナ内で稼働させています。
 
+### 1-1. dockerコンテナ生成用ソース
 
-## 不正アクセスのログ収集
+PostgreSQL 16 データベースコンテナ  
+※ initdbディレクトリにテーブル生成用SQLファイルを入れておくとテーブルも同時に生成されますが、運用環境作成時に実行しています。
+
+```
+src/development_pc/docker/
+├── .env
+├── Dockerfile
+├── docker-compose.yml
+└── initdb
+    └── 10_createdatabase.sql  # コンテナビルド時にデータベース作成
+```
+
+### 1-2. テーブル生成用ソース
+
+運用環境作成時にでテーブル生成用のSQLを実行してテーブルを作成します。
+
+```
+src/development_pc/data/sql
+└── example
+    ├── 11_createtables.sql    # 不正アクセスIPアドレス管理テーブル生成
+    ├── 12_add_createview.sql　# ビューの定義
+    ├── dkr_exec_show_unauth_accessed_ip.sh
+    └── show_unauth_accessed_ip_for_morethan_3days.sh
+```
+
+**不正アクセスIP管理テーブル生成クエリ** ```11_createtables.sql```  
+※テーブルのカラム定義のみ下記に示します。
+
+```11_createtables.sql
+CREATE SCHEMA mainte;
+
+-- 不正アクセスされたIPアドレス管理テーブル
+CREATE TABLE mainte.unauth_ip_addr(
+   id INTEGER NOT NULL,
+   ip_addr VARCHAR(15) NOT NULL,
+   reg_date DATE NOT NULL,
+   ip_number BIGINT NOT NULL,
+   country_code CHAR(2),
+   dropped_date DATE
+);
+... 一部省略 ...
+-- 不正アクセスされたIPアドレスの出現回数管理テーブル
+CREATE TABLE mainte.ssh_auth_error(
+   log_date DATE NOT NULL,
+   ip_id INTEGER NOT NULL,
+   appear_count INTEGER NOT NULL
+);
+```
+
+
+
+## 2. 不正アクセスのログ収集
 
 journalctlログ(対象: ssh.service) から取得された不正アクセスされたログの一例
 
@@ -65,6 +117,40 @@ journalctlログ(対象: ssh.service) から取得された不正アクセスさ
 
 + 毎日翌日の0時10分に上記スクリプトを実行するcron  
 **```src/server_pc/scripts/var/spool/cron/crontabs/cronuser```**
+
+
+## 3. テーブル登録処理
+
+運用管理用PC (デスクトップOS) で pythonスクリプトを実行。
+
+### 3-1. テーブル登録用CSVファイル生成
+
+不正アクセスログからテーブル登録用のCSVファイルを生成するpythonスクリプト  
+**```src/python/ServerTools/ExportCSV_with_autherrorlog.py```**
+
+生成したCSVの内容 ※1日あたり不正アクセス回数が30回超のIPアドレス
+```
+"log_date","ip_addr","appear_count"
+"2024-06-10","45.246.204.41",467
+"2024-06-10","36.108.171.189",373
+"2024-06-10","165.22.85.249",283
+"2024-06-10","223.108.114.238",281
+"2024-06-10","218.92.0.22",83
+"2024-06-10","36.64.232.117",49
+"2024-06-10","82.151.65.155",41
+"2024-06-10","20.244.134.31",41
+"2024-06-10","165.232.115.144",40
+"2024-06-10","43.136.95.69",38
+"2024-06-10","122.46.163.188",33
+"2024-06-10","60.188.49.52",31
+```
+
+
+### 3-2. テーブル一括登録
+
+上記 3-1で生成したCSVファイルからテーブルに一括登録するpythonスクリプト  
+**```src/python/ServerTools/BatchInsert_with_csv.py```**
+
 
 
 ### 参考URL
