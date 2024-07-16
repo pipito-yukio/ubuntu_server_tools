@@ -9,21 +9,38 @@
 ### ソースコードのディレクトリ構成
 
 ```
-└── src
-    ├── development_pc      # A) クライアントPCで実行するスクリプト類
-    │   ├── data            #  1. SQLスクリプト
-    │   │   └── sql        #
-    │   ├── docker          #  2. PostgreSQL16サーバー用 docker コンテナ生成ソース 
-    │   └── python          #  3. pythonスクリプト
-    │       └── ServerTools #    3-1. サーバーで収集したログをもとにデータベース一括登録
-    └── server_pc            # B) サーバー側で実行するスクリプト類
-        ├── logs             #  1. サンプルログファイル
-        └── scripts          #  2. シェルスクリプト
-            ├── bin          #  
-            └── var         
-                └── spool
-                    └── cron
-                        └── crontabs
+src/
+├── development_pc      # A) クライアントPCで実行するスクリプト類
+│   ├── bin
+│   │   └── servertools
+│   ├── data            #  1. SQLスクリプト
+│   │   └── sql
+│   │       └── example
+│   │           └── batch
+│   ├── docker          #  2. PostgreSQL16サーバー用 docker コンテナ生成ソース 
+│   │   └── initdb
+│   ├── logs
+│   └── python          #  3. pythonスクリプト
+│       └── ServerTools
+│           ├── conf
+│           ├── dao
+│           │   └── record
+│           ├── db
+│           ├── docs
+│           ├── extract
+│           ├── log
+│           └── util
+└── server_pc            # B) サーバー側で実行するスクリプト類
+    ├── logs             #  1. サンプルログファイル
+    │   └── server
+    │       └── work
+    │           └── journal_logs
+    └── scripts          #  2. シェルスクリプト
+        ├── bin
+        └── var
+            └── spool
+                └── cron
+                    └── crontabs
 ```
 
 ## 実行環境
@@ -55,15 +72,12 @@ src/development_pc/docker/
 
 ### 1-2. テーブル生成用ソース
 
-運用環境作成時にでテーブル生成用のSQLを実行してテーブルを作成します。
+運用環境構築時にテーブル生成用のSQLを実行してテーブルを作成します。
 
 ```
 src/development_pc/data/sql
 └── example
-    ├── 11_createtables.sql    # 不正アクセスIPアドレス管理テーブル生成
-    ├── 12_add_createview.sql　# ビューの定義
-    ├── dkr_exec_show_unauth_accessed_ip.sh
-    └── show_unauth_accessed_ip_for_morethan_3days.sh
+    └── 11_createtables.sql    # 不正アクセスIPアドレス管理テーブル生成
 ```
 
 **不正アクセスIP管理テーブル生成クエリ** ```11_createtables.sql```  
@@ -145,12 +159,16 @@ journalctlログ(対象: ssh.service) から取得された不正アクセスさ
 "2024-06-10","60.188.49.52",31
 ```
 
-
 ### 3-2. テーブル一括登録
 
 上記 3-1で生成したCSVファイルからテーブルに一括登録するpythonスクリプト  
 **```src/python/ServerTools/BatchInsert_with_csv.py```**
 
+
+## 4. シェルスクリプト
+
+サーバーからのログ収集からテーブルへの一括登録を実行するシェルスクリプト  
+**```src/development_pc/bi/servertools/scp_data_and_batch.sh```**
 
 
 ### 参考URL
