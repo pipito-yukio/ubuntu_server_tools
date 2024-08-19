@@ -1,0 +1,7 @@
+{
+  "data-dir": "~/Documents/exampledb/data",
+  "output-dir": "~/data/sql/exampledb/batch",
+  "query": {
+    "match-networks-dir": "~/Documents/exampledb/match_networks"
+  }
+}

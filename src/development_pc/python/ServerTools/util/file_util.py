@@ -17,6 +17,15 @@ def read_text(file_name: str) -> List[str]:
     return lines
 
 
+def write_text_lines(file_name: str, save_list: List[str],
+                     append_file: bool = False) -> None:
+    save_mode: str = 'a' if append_file else 'w'
+    with open(file_name, save_mode) as fp:
+        for save_line in save_list:
+            fp.write(f"{save_line}\n")
+        fp.flush()
+
+
 def read_csv(file_name: str,
              skip_header=True, header_cnt=1) -> List[str]:
     with open(file_name, 'r') as fp:
