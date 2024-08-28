@@ -88,24 +88,32 @@ def get_matches_main(
     while like_ip is not None:
         matches = get_rir_table_matches(conn, like_ip, logger=logger)
         if len(matches) > 0:
-            # 最初に見つかったレコードのネットワークIPがターゲットIPより大きい場合は除外する
-            # (例) target_ip=83.222.191.62
-            #   ▲ 一致するが範囲外:  target_ip < match_ip=83.222.192.0
-            #   ● 一致しかつ有効範囲: target_ip >= match_ip=83.222.184.0
-            match_first: Tuple[str, int, str] = matches[0]
+            # 先頭レコードの開始IPアドレス
+            first_ip: str = matches[0][0]
+            first_ip_addr: IPv4Address = ip_address(first_ip)  # type: ignore
+            # 最終レコードの開始IPアドレス
+            last: Tuple[str, int, str] = matches[-1]
+            last_ip: str = last[0]
+            ip_cnt: int = int(last[1])
+            last_ip_addr: IPv4Address = ip_address(last_ip)  # type: ignore
+            # 最終レコードのブロードキャストアドレス計算
+            broadcast_addr: IPv4Address = last_ip_addr + ip_cnt - 1  # type: ignore
             if logger is not None:
-                logger.info(f"match_first_ip: {match_first[0]}")
-            if ip_address(match_first[0]) > target_ip_addr:  # type: ignore
-                # 範囲外のネットワークIP
+                logger.info(f"match_first: {first_ip}, match_last: {last_ip}")
+
+            if first_ip_addr < target_ip_addr < broadcast_addr:
+                # ターゲットIPが先頭レコードの開始IPと最終レコードのブロードキャストの範囲内なら終了
                 if logger is not None:
-                    logger.info(f"({match_first[0]} > {target_ip}) continue")
-                # 次のlike検索を実行
-                like_ip = make_like_ip(like_ip)
-            else:
-                # 先頭のレコードが範囲内のネットワークIPアドレスなら終了
-                if logger is not None:
-                    logger.info(f"({match_first[0]} <= {target_ip}) break")
+                    logger.debug(
+                        f"Range in ({first_ip} < {target_ip} < {str(broadcast_addr)})"
+                        f", break"
+                    )
                 break
+            else:
+                # 範囲外: 次のlike検索文字列を生成して検索処理に戻る
+                like_ip = make_like_ip(like_ip)
+                if logger is not None:
+                    logger.info(f"next {like_ip} continue.")
         else:
             # レコード無し: 次のlike検索文字列を生成して検索処理に戻る
             if logger is not None:
@@ -173,12 +181,10 @@ def exec_main():
 
     db: Optional[pgdatabase.PgDatabase] = None
     try:
-        db = pgdatabase.PgDatabase(
-            DB_CONF_FILE, logger=app_logger if enable_debug else None)
+        db = pgdatabase.PgDatabase(DB_CONF_FILE, logger=None)
         conn: connection = db.get_connection()
         matches: Optional[List[Tuple[str, int, str]]] = get_matches_main(
             conn, target_ip, logger=app_logger if enable_debug else None)
-        app_logger.info("Match table Finished.")
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         exit(1)

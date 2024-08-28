@@ -59,13 +59,6 @@ class IpNetworkWithCC:
     ip_hosts: list[str]
 
 
-@typing.no_type_check
-def match_greater_target(
-        target_ip_addr: IPv4Address, ip_start: str) -> bool:
-    ip_start_addr: IPv4Address = ip_address(ip_start)
-    return ip_start_addr > target_ip_addr
-
-
 def get_ip_list_with_null_cc(
         conn: connection,
         fetch_limit: int,
@@ -110,11 +103,11 @@ def detect_cc_in_matches(
     match_cc: Optional[str] = None
     rec: RirRecord
     for rec in next_record(matches):
-        # ターゲットIP が ネットワークIPアドレスより大きい場合は処理終了
-        if match_greater_target(target_ip_addr, rec.ip_start):
+        # 開始IPアドレスがターゲットIPアドレスより大きい場合は範囲外なので処理終了
+        if ip_address(rec.ip_start) > target_ip_addr:  # type: ignore
             break
 
-        # 開始ネットワークIPのブロードキャストアドレスがターゲットIPより小さければ次のレコードへ
+        # 開始IPアドレスのブロードキャストアドレスがターゲットIP未満なら次のレコードへ
         broadcast_addr: IPv4Address = (
                 ip_address(rec.ip_start) + rec.ip_count - 1)  # type: ignore
         if broadcast_addr < target_ip_addr:
@@ -163,27 +156,33 @@ def rir_table_matches_main(
         while like_ip is not None:
             matches = get_rir_table_matches(conn, like_ip, logger=None)
             if len(matches) > 0:
-                # 最初に見つかったレコードのネットワークIPがターゲットIPより大きい場合は除外する
-                # パーセントLIKE検索でもあり得る
-                # (例) target_ip=83.222.191.62
-                #   ▲ 一致するが範囲外:  target_ip < match_ip=83.222.192.0
-                #   ● 一致しかつ有効範囲: target_ip >= match_ip=83.222.184.0
-                match_first: Tuple[str, int, str] = matches[0]
+                # 先頭レコードの開始IPアドレス
+                first_ip: str = matches[0][0]
+                first_ip_addr: IPv4Address = ip_address(first_ip)  # type: ignore
+                # 最終レコードの開始IPアドレス
+                last: Tuple[str, int, str] = matches[-1]
+                last_ip: str = last[0]
+                ip_cnt: int = int(last[1])
+                last_ip_addr: IPv4Address = ip_address(last_ip)  # type: ignore
+                # 最終レコードのブロードキャストアドレス計算
+                broadcast_addr: IPv4Address = last_ip_addr + ip_cnt - 1  # type: ignore
                 if enable_debug:
-                    logger.debug(f"{i + 1:04d}: match_first_ip: {match_first[0]}")
-                match_greader: bool = match_greater_target(target_ip_addr,
-                                                           match_first[0])
-                if match_greader:
-                    # 範囲外のネットワークIP
+                    logger.debug(f"{i + 1:04d}: first: {first_ip}, last: {last_ip}")
+
+                if first_ip_addr < target_ip_addr < broadcast_addr:
+                    # ターゲットIPが先頭レコードの開始IPと最終レコードのブロードキャストの範囲内なら終了
                     if enable_debug:
-                        logger.debug(f"({match_first[0]} > {target_ip}) continue")
+                        logger.debug(
+                            f"Range in ({first_ip} < {target_ip} < {str(broadcast_addr)})"
+                            f", break"
+                        )
+                    break
+                else:
+                    # 範囲外
+                    if enable_debug:
+                        logger.debug(f"({target_ip} out of range, continue")
                     # 次のlike検索を実行
                     like_ip = make_like_ip(like_ip)
-                else:
-                    # 先頭のレコードが範囲内のネットワークIPアドレスなら終了
-                    if enable_debug:
-                        logger.debug(f"({match_first[0]} <= {target_ip}) break")
-                    break
             else:
                 # レコード無し: 次のlike検索文字列を生成して検索処理に戻る
                 if enable_debug:
@@ -230,7 +229,7 @@ def save_network_cc_dict(
     net_cc_lines: List[str] = []
     for key in dict_ip_network_cc.keys():
         net_cc_rec = dict_ip_network_cc[key]
-        line_hosts: str = '","'.join(net_cc_rec.ip_hosts)
+        line_hosts: str = '",\n"'.join(net_cc_rec.ip_hosts)
         line: str = f'"{key}","{net_cc_rec.country_code}",["{line_hosts}"]'
         net_cc_lines.append(line)
     fu.write_text_lines(save_file, net_cc_lines)
