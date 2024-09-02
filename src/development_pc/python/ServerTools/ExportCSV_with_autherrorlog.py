@@ -6,19 +6,20 @@ from collections import Counter
 from datetime import date
 from typing import Any, List, Dict, Optional
 import util.file_util as fu
-from log import logsetting
 
 """
-サーバーでjournalctlでsshサービスに関連したログインエラーログファイルから
+webriverside.com サーバーでjournalctlでsshサービスに関連したログインエラーログファイルから
 不正アクセスしているクライアントのIPアドレスとカウンターを抽出してCSVファイルに出力する
 """
 
 CONF_FILE: str = os.path.join("conf", "export_csv_with_invalid_ip.json")
 
 # rhhost の後ろに何もないケースと "user=xxx"があるパターンがある
-# : authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=218.92.0.96  user=root
-# : authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=216.181.226.86
-re_auth_fail: re.Pattern = re.compile(r"^.+?rhost=([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}).*$")
+# authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=218.92.0.96 user=root
+# authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=216.181.226.86
+re_auth_fail: re.Pattern = re.compile(
+    r"^.+?rhost=([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}).*$"
+)
 re_log_file: re.Pattern = re.compile(r"^AuthFail_ssh_(\d{4}-\d{2}-\d{2})\.log$")
 FMT_OUT_CSV: str = "ssh_auth_error_{}.csv"
 # CSV format
@@ -28,16 +29,15 @@ CSV_HEADER: str = '"log_date","ip_addr","appear_count"'
 def extract_log_date(file_path: str) -> str:
     # ファイル名から日付を取得
     b_name: str = os.path.basename(file_path)
-    f_mat: re.Match = re_log_file.search(b_name)
+    f_mat: Optional[re.Match] = re_log_file.search(b_name)
     if f_mat:
         return f_mat.group(1)
     else:
         return date.today().isoformat()
 
 
-def get_csv_path(s_date: str) -> str:
+def get_csv_path(s_date: str, out_csv_dir: str) -> str:
     save_name: str = FMT_OUT_CSV.format(s_date)
-    out_csv_dir: str = conf["csv-dir"]
     return os.path.join(os.path.expanduser(out_csv_dir), save_name)
 
 
@@ -47,7 +47,7 @@ def file_read(file_name: str):
             yield ln
 
 
-if __name__ == '__main__':
+def batch_main():
     logging.basicConfig(format="%(message)s")
     app_logger = logging.getLogger(__name__)
     app_logger.setLevel(level=logging.INFO)
@@ -72,32 +72,32 @@ if __name__ == '__main__':
 
     ip_list: List = []
     for line in lines:
-        mat: re.Match = re_auth_fail.search(line)
+        mat: Optional[re.Match] = re_auth_fail.search(line)
         if mat:
             ip_list.append(mat.group(1))
     list_size: int = len(ip_list)
     app_logger.info(f"ip_list.size: {list_size}")
 
     if list_size > 0:
-        csv_list: Optional[List[str]] = None
-        log_date: Optional[str] = None
-        if is_out_csv:
-            csv_list = []
-            log_date = extract_log_date(f_path)
-            app_logger.info(f"log_date: {log_date}")
-
         counter: Counter = Counter(ip_list)
         if not is_out_csv:
             # 出力のみ: TOP N
             for item in counter.most_common(show_top):
                 app_logger.info(item)
         else:
+            csv_list: List[str] = []
+            log_date = extract_log_date(f_path)
+            app_logger.info(f"log_date: {log_date}")
             # CSV出力: 出現回数が指定件数以上
             for (ip_addr, cnt) in counter.most_common():
                 if cnt >= out_count_limit:
                     csv_line: str = f'"{log_date}","{ip_addr}",{cnt}'
                     csv_list.append(csv_line)
             app_logger.info(f"output_lines: {len(csv_list)}")
-            save_path: str = get_csv_path(log_date)
+            save_path: str = get_csv_path(log_date, conf["csv-dir"])
             fu.write_csv(save_path, csv_list, header=CSV_HEADER)
             app_logger.info(f"Saved: {save_path}")
+
+
+if __name__ == '__main__':
+    batch_main()
