@@ -32,8 +32,9 @@ fi
 end_datetime="$start_day 23:59:59"
 file_name="AuthFail_ssh_$start_day.log"
 
-echo $sudo_passwd | {
-  sudo --stdin $CMD --since="$start_day" --until="$end_datetime" -u ssh.service -o short-iso | grep "$GREP_KWD" > "$OUTPUT_DIR/$file_name"
+echo $my_passwd | {
+  sudo --stdin $CMD --since="$start_day" --until="$end_datetime" -u ssh.service --no-hostname -o short-iso \
+   | grep "$GREP_KWD" > "$OUTPUT_DIR/$file_name"
 }
 echo "Saved $file_name" 
 
