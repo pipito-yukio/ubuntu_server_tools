@@ -52,6 +52,7 @@ FMT_SQL: str = "UPDATE mainte.unauth_ip_addr SET country_code='{}' WHERE ip_addr
 CC_UNKNOWN: str = "??"
 
 
+# ネットワークアドレス(Ipv4)の国コードとホストIPアドレスリストを保持するデータクラス
 @dataclass(frozen=True)
 class IpNetworkWithCC:
     ip_network: str
@@ -103,11 +104,12 @@ def detect_cc_in_matches(
     match_cc: Optional[str] = None
     rec: RirRecord
     for rec in next_record(matches):
-        # 開始IPアドレスがターゲットIPアドレスより大きい場合は範囲外なので処理終了
+        # ターゲットIP が ネットワークIPアドレスより大きい場合は範囲外のため処理終了
         if ip_address(rec.ip_start) > target_ip_addr:  # type: ignore
+            # マッチするデータなし
             break
 
-        # 開始IPアドレスのブロードキャストアドレスがターゲットIP未満なら次のレコードへ
+        # 開始ネットワークIPのブロードキャストアドレスがターゲットIPより小さければ次のレコードへ
         broadcast_addr: IPv4Address = (
                 ip_address(rec.ip_start) + rec.ip_count - 1)  # type: ignore
         if broadcast_addr < target_ip_addr:
@@ -146,8 +148,7 @@ def rir_table_matches_main(
         dict_ip_network_cc: Optional[Dict[str, IpNetworkWithCC]],
         unknown_ip_list: Optional[List[str]],
         sql_lines: Optional[List[str]],
-        logger: logging.Logger,
-        enable_debug: bool = False) -> None:
+        logger: logging.Logger, enable_debug: bool = False) -> None:
     for i, target_ip in enumerate(target_ip_list):
         logger.info(f"{i + 1:04d}: START {target_ip}")
         target_ip_addr: IPv4Address = ip_address(target_ip)  # type: ignore
@@ -167,22 +168,21 @@ def rir_table_matches_main(
                 # 最終レコードのブロードキャストアドレス計算
                 broadcast_addr: IPv4Address = last_ip_addr + ip_cnt - 1  # type: ignore
                 if enable_debug:
-                    logger.debug(f"{i + 1:04d}: first: {first_ip}, last: {last_ip}")
+                    logger.debug(f"{i + 1:04d}: first_ip: {first_ip}, last_ip: {last_ip}")
 
                 if first_ip_addr < target_ip_addr < broadcast_addr:
                     # ターゲットIPが先頭レコードの開始IPと最終レコードのブロードキャストの範囲内なら終了
-                    if enable_debug:
+                    if logger is not None:
                         logger.debug(
                             f"Range in ({first_ip} < {target_ip} < {str(broadcast_addr)})"
                             f", break"
                         )
                     break
                 else:
-                    # 範囲外
-                    if enable_debug:
-                        logger.debug(f"({target_ip} out of range, continue")
-                    # 次のlike検索を実行
+                    # 範囲外: 次のlike検索文字列を生成して検索処理に戻る
                     like_ip = make_like_ip(like_ip)
+                    if logger is not None:
+                        logger.info(f"next {like_ip} continue.")
             else:
                 # レコード無し: 次のlike検索文字列を生成して検索処理に戻る
                 if enable_debug:
@@ -229,7 +229,7 @@ def save_network_cc_dict(
     net_cc_lines: List[str] = []
     for key in dict_ip_network_cc.keys():
         net_cc_rec = dict_ip_network_cc[key]
-        line_hosts: str = '",\n"'.join(net_cc_rec.ip_hosts)
+        line_hosts: str = '","'.join(net_cc_rec.ip_hosts)
         line: str = f'"{key}","{net_cc_rec.country_code}",["{line_hosts}"]'
         net_cc_lines.append(line)
     fu.write_text_lines(save_file, net_cc_lines)
@@ -256,6 +256,7 @@ def save_sql_lines(
 
 def export_main():
     app_logger: logging.Logger = logsetting.get_logger("export_main")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--fetch-limit", type=int, default=100,
                         help="Fetch target ip List count.")
@@ -273,6 +274,9 @@ def export_main():
     save_match_network: bool = args.save_match_network
     no_output_sql: bool = args.no_output_sql
     enable_debug: bool = args.enable_debug
+    app_logger.info(
+        f"fetch_limit: {fetch_limit},save_match_network: {save_match_network}"
+    )
 
     # クエリーの出力先
     conf: Dict[str, Any] = fu.read_json(CONF_FILE)
@@ -314,7 +318,6 @@ def export_main():
                 conn, target_ip_list, dict_ip_network_cc, unknown_ip_list, sql_lines,
                 app_logger, enable_debug
             )
-
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         exit(1)

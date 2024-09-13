@@ -10,11 +10,13 @@ from db import pgdatabase
 from dao.record.tabledata import RegUnauthIpAddr, SshAuthError
 # unauth_ip_addr テーブル
 from dao.unauth_ip_addr import (
-    bulk_exists_ip_addr, bulk_insert_with_fetch as bulk_insert_into_unauth_ip_addr
+    bulk_exists_ip_addr,
+    bulk_insert_with_fetch as bulk_insert_into_unauth_ip_addr
 )
 # ssh_auth_error テーブル
 from dao.ssh_auth_error import (
-    bulk_exists_record, bulk_insert_with_nofetch as bulk_insert_into_ssh_auth_error
+    bulk_exists_ssh_auth_error,
+    bulk_insert_with_nofetch as bulk_insert_into_ssh_auth_error
 )
 
 import util.file_util as fu
@@ -30,8 +32,6 @@ from log import logsetting
      ssh_auth_error
 """
 
-# ログフォーマット
-LOG_FMT: str = '%(levelname)s %(message)s'
 # データベース接続情報
 DB_CONF_FILE: str = os.path.join("conf", "db_conn.json")
 
@@ -150,11 +150,11 @@ def batch_main():
     parser.add_argument("--enable-debug", action="store_true",
                         help="Enable logger debug out.")
     args: argparse.Namespace = parser.parse_args()
+    csv_file: str = args.csv_file
     enable_debug: bool = args.enable_debug
-    app_logger.info(args)
+    app_logger.info(f"csv-file: {csv_file}")
 
     # CSVファイルを開く
-    csv_file: str = args.csv_file
     csv_path = os.path.join(os.path.expanduser(csv_file))
     if not os.path.exists(csv_path):
         app_logger.error(f"FileNotFound: {csv_path}")
@@ -163,7 +163,7 @@ def batch_main():
     # CSVレコード: "log_date,ip_addr,appear_count"
     csv_lines: List[str] = fu.read_csv(csv_path)
     line_cnt: int = len(csv_lines)
-    # CSVの内容はファイルを見ればわかるので行数のみ出力
+    # CSVファイル行数
     app_logger.info(f"csv: {line_cnt} lines.")
     if line_cnt == 0:
         app_logger.warning("Empty csv record.")
@@ -176,7 +176,7 @@ def batch_main():
         conn: connection = db.get_connection()
 
         # CSVから取得したIPアドレス(2列目)が登録済みかチェック
-        ip_list: List[str] = [csv.split(",")[1] for csv in csv_lines]
+        ip_list: List[str] = [line.split(",")[1] for line in csv_lines]
         exists_ip_dict: Dict[str, int] = bulk_exists_ip_addr(
             conn, ip_list, logger=app_logger)
         app_logger.info(f"exists_ip_dict.size: {len(exists_ip_dict)}")
@@ -198,6 +198,7 @@ def batch_main():
                 conn, exists_ip_dict, reg_ip_datas,
                 logger=app_logger, enable_debug=enable_debug
             )
+
         # 不正アクセスカウンターテーブル登録用リスト
         ssh_auth_error_list: List[SshAuthError] = get_register_ssh_auth_error_list(
             exists_ip_dict, csv_lines, logger=app_logger
@@ -205,6 +206,7 @@ def batch_main():
         app_logger.info(
             f"Register ssh_auth_error_list.size: {len(ssh_auth_error_list)}"
         )
+
         # 不正アクセスカウンターテーブルに新規
         if len(ssh_auth_error_list) > 0:
             insert_ssh_auth_error_main(

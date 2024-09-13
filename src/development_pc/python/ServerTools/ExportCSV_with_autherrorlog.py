@@ -8,7 +8,7 @@ from typing import Any, List, Dict, Optional
 import util.file_util as fu
 
 """
-webriverside.com サーバーでjournalctlでsshサービスに関連したログインエラーログファイルから
+example.com サーバーでjournalctlでsshサービスに関連したログインエラーログファイルから
 不正アクセスしているクライアントのIPアドレスとカウンターを抽出してCSVファイルに出力する
 """
 
@@ -20,6 +20,7 @@ CONF_FILE: str = os.path.join("conf", "export_csv_with_invalid_ip.json")
 re_auth_fail: re.Pattern = re.compile(
     r"^.+?rhost=([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}).*$"
 )
+# ファイル名のログ日付抽出
 re_log_file: re.Pattern = re.compile(r"^AuthFail_ssh_(\d{4}-\d{2}-\d{2})\.log$")
 FMT_OUT_CSV: str = "ssh_auth_error_{}.csv"
 # CSV format
@@ -79,9 +80,10 @@ def batch_main():
     app_logger.info(f"ip_list.size: {list_size}")
 
     if list_size > 0:
+        # 抽出した ip の出現数をカウント
         counter: Counter = Counter(ip_list)
         if not is_out_csv:
-            # 出力のみ: TOP N
+            # コンソール出力の場合: Top N
             for item in counter.most_common(show_top):
                 app_logger.info(item)
         else:

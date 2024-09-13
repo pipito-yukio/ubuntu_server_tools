@@ -64,6 +64,34 @@ ORDER BY
         raise err
 
 
+def get_country_code_name(
+        conn: connection,
+        country_code: str,
+        logger: Optional[logging.Logger] = None) -> Optional[str]:
+    if logger is not None:
+        logger.debug(f"country_code: {country_code}")
+    result: Optional[str]
+    try:
+        cur: cursor
+        # ゼロ埋めしたIPアドレスの昇順にソートする
+        with conn.cursor() as cur:
+            cur.execute("""
+SELECT japanese_name FROM mainte.country_code_name_mst WHERE country_code=%(cc)s""",
+                        ({'cc': country_code})
+                        )
+            # レコード取得件数チェック
+            if cur.rowcount > 0:
+                row: Optional[Tuple] = cur.fetchone()
+                if logger is not None:
+                    logger.debug(f"row: {row}")
+                result = row[0] if row is not None else None
+            else:
+                result = None
+        return result
+    except (Exception, psycopg2.DatabaseError) as err:
+        raise err
+
+
 def get_matches_main(
         conn: connection,
         target_ip: str,
@@ -185,6 +213,25 @@ def exec_main():
         conn: connection = db.get_connection()
         matches: Optional[List[Tuple[str, int, str]]] = get_matches_main(
             conn, target_ip, logger=app_logger if enable_debug else None)
+
+        # ターゲットIPのネットワーク(CIDR表記)と国コードを取得する
+        if matches is not None and len(matches) > 0:
+            network: Optional[str]
+            cc: Optional[str]
+            network, cc = detect_cc_in_matches(
+                target_ip, matches, logger=app_logger if enable_debug else None)
+            if network is not None and cc is not None:
+                cc_name: Optional[str] = get_country_code_name(
+                    conn, cc, logger=app_logger if enable_debug else None
+                )
+                app_logger.info(
+                    f'Find {target_ip} in (network: "{network}", "{cc}:{cc_name}")'
+                )
+            else:
+                app_logger.info(f"Not match in data.")
+        else:
+            # このケースは想定しない
+            app_logger.warning(f"Not exists in RIR table.")
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         exit(1)
@@ -194,22 +241,6 @@ def exec_main():
     finally:
         if db is not None:
             db.close()
-
-    # ターゲットIPのネットワーク(CIDR表記)と国コードを取得する
-    if matches is not None and len(matches) > 0:
-        network: Optional[str]
-        cc: Optional[str]
-        network, cc = detect_cc_in_matches(
-            target_ip, matches, logger=app_logger if enable_debug else None)
-        if network is not None and cc is not None:
-            app_logger.info(
-                f'Find {target_ip} in (network: "{network}", country_code: "{cc}")'
-            )
-        else:
-            app_logger.info(f"Not match in data.")
-    else:
-        # このケースは想定しない
-        app_logger.warning(f"Not exists in RIR table.")
 
 
 if __name__ == '__main__':
