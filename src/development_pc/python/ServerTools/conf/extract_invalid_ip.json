@@ -1,0 +1,7 @@
+{
+  "show-limit": {
+    "ip-addr": 30,
+    "count": 300
+  },
+  "csv-dir": "~/data/sql/exampledb/csv"
+}

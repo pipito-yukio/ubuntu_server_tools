@@ -1,4 +1,4 @@
-import logging
+from logging import Logger
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
@@ -50,7 +50,7 @@ def make_like_ip(like_old: str) -> Optional[str]:
 def get_rir_table_matches(
         con: connection,
         qry_params: str,
-        logger: Optional[logging.Logger] = None) -> List[Tuple[str, int, str]]:
+        logger: Optional[Logger] = None) -> List[Tuple[str, int, str]]:
     if logger is not None:
         logger.debug(f"qry_params: {qry_params}")
     result: List[Tuple[str, int, str]]

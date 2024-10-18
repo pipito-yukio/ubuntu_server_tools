@@ -1,0 +1,4 @@
+{
+  "appear-limit": 30,
+  "log-dir": "~/Documents/exampledb/error_logs"
+}

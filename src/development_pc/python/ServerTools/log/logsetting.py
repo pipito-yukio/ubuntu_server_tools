@@ -5,7 +5,7 @@ import logging
 import logging.config
 import json
 
-my_home = os.environ.get("HOME")
+my_home = os.environ.get("HOME", "/home/username)
 log_home = os.environ.get("PATH_SERVER_TOOLS_LOGS", "logs/servertools")
 
 instance = None
@@ -14,15 +14,15 @@ instance = None
 def get_logger(name):
     global instance
     if instance is None:
-        init()
+        init(name)
         instance = object()
     return logging.getLogger(name)
 
 
-def init():
+def init(log_name: str):
     base_path = os.path.abspath(os.path.dirname(__file__))
     # print(base_path)
-    logfile = os.path.join(base_path, "logconf_main.json")
+    logfile = os.path.join(base_path, f"logconf_{log_name}.json")
     with open(logfile, "r") as fp:
         logconf = json.load(fp)
     # print(logconf)

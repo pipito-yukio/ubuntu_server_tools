@@ -67,7 +67,7 @@ def bulk_exists_record_with_joined(
         raise err
 
 
-def bulk_exists_record(
+def bulk_exists_ssh_auth_error(
         conn: connection,
         log_date: str,
         ipid_list: List[int],
